@@ -1,0 +1,80 @@
+#!/bin/bash
+
+if [ "$EUID" -ne 0 ]
+    then echo "Please run as root"
+    exit
+fi
+
+wg_config_dir=/etc/wireguard
+wg_show=`wg show`
+color_off='\033[0m'
+color_green='\033[0;32m'
+
+is_interface_active()
+{
+    if [[ $wg_show == *"interface: $1"* ]]; then
+        true; return
+    else
+        false; return
+    fi
+}
+
+interface_from_config()
+{
+    basename -s .conf $1; return
+}
+
+echo ""
+declare -A interfaces
+number=1
+for config in $wg_config_dir/*; do
+    interfaces["${number}"]="$config"
+    interface=$(interface_from_config "$config")
+    if is_interface_active $interface; then
+        interface="${interface} ${color_green}active${color_off}"
+    fi
+    echo -e "$number) $interface"
+    ((number++))
+done
+
+show_stat_code=$number
+((number++))
+exit_code+=$number
+
+echo -e "$show_stat_code) Show stat"
+echo -e "$exit_code) Exit"
+
+echo ""
+read -p "Select: " selected_number
+
+if [ "$selected_number" == "$show_stat_code" ]; then
+    echo ""
+    sudo wg show
+    echo ""
+    exit
+fi
+
+if [ "$selected_number" == "$exit_code" ]; then
+    echo "exiting"
+    echo ""
+    exit
+fi
+
+if [[ -z "${interfaces[${selected_number}]}" ]]; then
+    echo "Invalid value"
+    echo ""
+    exit
+fi
+
+echo ""
+config="${interfaces[${selected_number}]}"
+interface=$(interface_from_config "$config")
+
+if is_interface_active $interface; then
+    wg-quick down $config
+else
+    wg-quick up $config
+fi
+
+echo ""
+exit
