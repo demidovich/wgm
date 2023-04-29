@@ -9,6 +9,7 @@ wg_config_dir=/etc/wireguard
 wg_show=`wg show`
 color_off='\033[0m'
 color_green='\033[0;32m'
+color_red='\033[0;31m'
 
 is_interface_active()
 {
@@ -19,7 +20,7 @@ is_interface_active()
     fi
 }
 
-interface_from_config()
+interface_name()
 {
     basename -s .conf $1; return
 }
@@ -27,9 +28,9 @@ interface_from_config()
 echo ""
 declare -A interfaces
 number=1
-for config in $wg_config_dir/*; do
-    interfaces["${number}"]="$config"
-    interface=$(interface_from_config "$config")
+for file in $wg_config_dir/*; do
+    interfaces["${number}"]="$file"
+    interface=$(interface_name "$file")
     if is_interface_active $interface; then
         interface="${interface} ${color_green}active${color_off}"
     fi
@@ -47,6 +48,13 @@ echo -e "$exit_code) Exit"
 echo ""
 read -p "Select: " selected_number
 
+if [ -z "$selected_number" ]; then
+    echo ""
+    echo -e "${color_red}An empty value was specified.${color_off}"
+    echo ""
+    exit
+fi
+
 if [ "$selected_number" == "$show_stat_code" ]; then
     echo ""
     sudo wg show
@@ -55,20 +63,22 @@ if [ "$selected_number" == "$show_stat_code" ]; then
 fi
 
 if [ "$selected_number" == "$exit_code" ]; then
+    echo ""
     echo "exiting"
     echo ""
     exit
 fi
 
 if [[ -z "${interfaces[${selected_number}]}" ]]; then
-    echo "Invalid value"
+    echo ""
+    echo -e "${color_red}An invalid value was specified.${color_off}"
     echo ""
     exit
 fi
 
 echo ""
 config="${interfaces[${selected_number}]}"
-interface=$(interface_from_config "$config")
+interface=$(interface_name "$config")
 
 if is_interface_active $interface; then
     wg-quick down $config
