@@ -1,5 +1,7 @@
 # wgm
 
+Script for quickly managing Wireguard connections. Shows connection status. Turns the connection on or off.
+
 Usage example:
 
 ```bash
